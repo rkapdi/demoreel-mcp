@@ -1,0 +1,7 @@
+{"input":"docs/page.png","output":"docs/annotate.png","annotations":[
+ {"type":"pixelate","x":872,"y":407,"width":208,"height":34,"block":9},
+ {"type":"spotlight","x":186,"y":110,"width":484,"height":396,"dim":0.5},
+ {"type":"step","x":184,"y":270},{"type":"step","x":184,"y":467},
+ {"type":"callout","x":710,"y":238,"text":"Name the project","size":24,"target":[654,270],"background":"blue"},
+ {"type":"callout","x":710,"y":435,"text":"Then publish","size":24,"target":[654,467],"background":"green"}],
+ "background":{"gradient":"ocean","padding":48}}

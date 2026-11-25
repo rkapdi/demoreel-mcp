@@ -69,3 +69,23 @@ test('settingsSet refuses sensitive and unverified keys before touching anything
   await assert.rejects(settingsSet({ licenseKey: 'x' }), /Refusing/);
   await assert.rejects(settingsSet({ someGuess: true }), /not a verified setting/);
 });
+
+test('polishVideo adds a caption band under a framed picture', async (t) => {
+  const { execFileSync } = await import('node:child_process');
+  try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); } catch { return t.skip('ffmpeg not installed'); }
+  const { polishVideo, probe } = await import('../src/video.js');
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'demoreel-test-'));
+  const src = path.join(dir, 'in.mp4');
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc=size=320x200:rate=30:duration=2', '-pix_fmt', 'yuv420p', src]);
+  const plain = await polishVideo({ input: src, output: path.join(dir, 'a.mp4'), background: { padding: 20 } });
+  assert.equal(plain.width, 360); assert.equal(plain.height, 240);
+  const capped = await polishVideo({
+    input: src, output: path.join(dir, 'b.mp4'), background: { padding: 20 },
+    captions: [{ text: 'hello', start: 0.2, end: 1.5 }], zooms: [{ start: 0.2, end: 1.5, x: 100, y: 80 }],
+    annotations: [{ type: 'pixelate', x: 10, y: 10, width: 60, height: 40, start: 0, end: 2 }],
+  });
+  assert.equal(capped.width, 360); assert.ok(capped.height > 240, 'caption band adds height');
+  assert.equal(capped.zooms, 1);
+  assert.ok((await probe(capped.file)).duration > 1.8);
+  await fs.rm(dir, { recursive: true });
+});

@@ -1,0 +1,78 @@
+{
+  "input": "out/raw.mp4",
+  "trim": {
+    "start": 0.8,
+    "end": 12.4
+  },
+  "zooms": [
+    {
+      "start": 2.3,
+      "end": 5.6,
+      "x": 427,
+      "y": 300,
+      "scale": 1.6
+    },
+    {
+      "start": 6.3,
+      "end": 8.9,
+      "x": 427,
+      "y": 467,
+      "scale": 1.7
+    },
+    {
+      "start": 10.0,
+      "end": 12.2,
+      "x": 976,
+      "y": 423,
+      "scale": 1.8
+    }
+  ],
+  "annotations": [
+    {
+      "type": "pixelate",
+      "x": 872,
+      "y": 407,
+      "width": 208,
+      "height": 34,
+      "block": 9,
+      "start": 0.8,
+      "end": 12.4
+    },
+    {
+      "type": "callout",
+      "x": 430,
+      "y": 612,
+      "text": "One click to go live",
+      "target": [
+        560,
+        502
+      ],
+      "background": "blue",
+      "size": 26,
+      "start": 5.6,
+      "end": 8.6
+    }
+  ],
+  "captions": [
+    {
+      "text": "1  Name the project",
+      "start": 2.4,
+      "end": 5.6
+    },
+    {
+      "text": "2  Publish in one click",
+      "start": 6.2,
+      "end": 8.9
+    },
+    {
+      "text": "Secrets are blurred for you",
+      "start": 10.0,
+      "end": 12.2
+    }
+  ],
+  "background": {
+    "gradient": "sunrise",
+    "padding": 56
+  },
+  "output": "docs/demo.mp4"
+}

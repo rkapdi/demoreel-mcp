@@ -1,0 +1,53 @@
+{
+  "area": {
+    "x": 160,
+    "y": 150,
+    "width": 1280,
+    "height": 790
+  },
+  "options": {
+    "highlightClicks": true,
+    "systemAudio": false,
+    "camera": false
+  },
+  "hideDesktopIcons": true,
+  "focusApp": "com.apple.Safari",
+  "steps": [
+    {
+      "do": "move",
+      "x": 900,
+      "y": 600,
+      "ms": 300
+    },
+    {
+      "do": "click",
+      "x": 427,
+      "y": 270,
+      "ms": 900,
+      "label": "focus the name field",
+      "pause": 500
+    },
+    {
+      "do": "type",
+      "text": "Spring launch",
+      "ms": 85,
+      "pause": 900
+    },
+    {
+      "do": "click",
+      "x": 427,
+      "y": 467,
+      "ms": 900,
+      "label": "publish",
+      "pause": 1800
+    },
+    {
+      "do": "move",
+      "x": 976,
+      "y": 423,
+      "ms": 1100,
+      "pause": 1500
+    }
+  ],
+  "output": "out/raw.mp4"
+}

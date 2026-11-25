@@ -129,23 +129,25 @@ export async function polishVideo(spec) {
       chains.push(`[${cur}]scale=${W * S}:${H * S}:flags=lanczos,zoompan=z='${zexpr}':x='clip((${pick('x')})-iw/zoom/2,0,iw-iw/zoom)':y='clip((${pick('y')})-ih/zoom/2,0,ih-ih/zoom)':d=1:s=${W}x${H}:fps=${fps}[${out}]`);
       cur = out;
     }
-    // 4. captions — fixed to the frame (added after zoom so they never move).
-    let ci = 0;
-    for (const c of spec.captions || []) {
-      const s = rel(c.start), e = rel(c.end);
-      if (e <= s) continue;
-      const size = c.size ?? Math.round(H * 0.045);
-      const yPos = c.position === 'top' ? Math.round(H * 0.06) : Math.round(H * 0.94 - size * 1.9);
-      const file = path.join(tmp, `cap${ci++}.png`);
-      await sharp(Buffer.from(marksSvg([{ type: 'text', text: c.text, x: W / 2, y: yPos, anchor: 'center', size, color: c.color, background: c.background, backgroundOpacity: c.backgroundOpacity ?? 0.8 }], W, H))).png().toFile(file);
-      overlayTimed(addImage(file, dur), s, e);
-    }
-    // 5. framed background: padding, gradient, rounded corners, soft shadow.
+    // 4/5. framed background (padding, gradient, rounded corners, soft shadow) and captions.
+    // With a background, captions sit in an extra band under the picture so they never cover the product.
+    const captions = (spec.captions || []).map((c) => ({ ...c, s: rel(c.start), e: rel(c.end) })).filter((c) => c.e > c.s);
+    const capSize = (c) => c.size ?? Math.round(H * 0.045);
     let OW = W, OH = H;
+    const addCaptions = async (cw, ch, topFor) => {
+      let ci = 0;
+      for (const c of captions) {
+        const size = capSize(c);
+        const file = path.join(tmp, `cap${ci++}.png`);
+        await sharp(Buffer.from(marksSvg([{ type: 'text', text: c.text, x: cw / 2, y: topFor(size, c), anchor: 'center', size, color: c.color, background: c.background, backgroundOpacity: c.backgroundOpacity ?? 0.8 }], cw, ch, { shadow: false }))).png().toFile(file);
+        overlayTimed(addImage(file, dur), c.s, c.e);
+      }
+    };
     if (spec.background) {
       const bg = spec.background;
       const pad = even(bg.padding ?? Math.max(W, H) * 0.05), r = bg.radius ?? 14;
-      OW = W + pad * 2; OH = H + pad * 2;
+      const band = captions.length ? even(Math.max(...captions.map(capSize)) * 2.4) : 0;
+      OW = W + pad * 2; OH = H + pad * 2 + band;
       const blur = bg.shadowBlur ?? Math.max(8, Math.round(pad * 0.35));
       const layers = bg.shadow === false ? [] : [{ input: await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${OW}" height="${OH}"><rect x="${pad}" y="${pad + blur * 0.5}" width="${W}" height="${H}" rx="${r}" fill="#000" fill-opacity="${bg.shadowOpacity ?? 0.38}"/></svg>`)).blur(blur).png().toBuffer() }];
       const bgFile = path.join(tmp, 'bg.png'), maskFile = path.join(tmp, 'mask.png');
@@ -155,6 +157,10 @@ export async function polishVideo(spec) {
       const [a, out] = [next(), next()];
       chains.push(`[${mi}:v]format=gray[mk]`, `[${cur}]format=rgba[vr]`, `[vr][mk]alphamerge[${a}]`, `[${bi}:v][${a}]overlay=${pad}:${pad}:shortest=1[${out}]`);
       cur = out;
+      // Centre each caption in the band below the picture.
+      await addCaptions(OW, OH, (size) => Math.round(pad + H + (pad + band) / 2 - size * 0.97 + (band ? 0 : 0)));
+    } else {
+      await addCaptions(W, H, (size, c) => (c.position === 'top' ? Math.round(H * 0.06) : Math.round(H * 0.94 - size * 1.9)));
     }
     // 6. speed.
     const speed = spec.speed && spec.speed > 0 ? spec.speed : 1;
@@ -182,7 +188,7 @@ export async function polishVideo(spec) {
     await fs.mkdir(path.dirname(output), { recursive: true });
     if (format === 'gif') {
       const gw = Math.min(spec.width || 960, OW), gfps = spec.fps || 15;
-      chains.push(`[${cur}]fps=${gfps},scale=${even(gw)}:-2:flags=lanczos,split[ga][gb]`, `[ga]palettegen=stats_mode=diff[pal]`, `[gb][pal]paletteuse=dither=bayer:bayer_scale=4[outv]`);
+      chains.push(`[${cur}]fps=${gfps},scale=${even(gw)}:-2:flags=lanczos,split[ga][gb]`, `[ga]palettegen=stats_mode=diff[pal]`, `[gb][pal]paletteuse=dither=sierra2_4a:diff_mode=rectangle[outv]`);
       args.push('-filter_complex', chains.join(';'), '-map', '[outv]', output);
     } else {
       let last = cur;

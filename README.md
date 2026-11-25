@@ -2,21 +2,56 @@
 
 An MCP server that lets an AI agent **record, annotate and polish product demo videos on macOS** by driving [CleanShot X](https://cleanshot.com).
 
+![An agent recording, zooming, blurring and captioning a product demo](docs/demo.gif)
+
+<sub>That clip was made by demoreel itself, from one `record_demo` call and one `polish_video` call. The settings are in [`docs/demo.record.json`](docs/demo.record.json) and [`docs/demo.polish.json`](docs/demo.polish.json); the full-quality video is [`docs/demo.mp4`](docs/demo.mp4).</sub>
+
 One tool call can arrange the app window, start a CleanShot recording, move the pointer and type like a person, stop, and hand back a finished video with smooth zooms on every click, captions, a framed gradient background and title cards.
+
+![A raw CleanShot recording next to the same take after demoreel](docs/before-after.png)
 
 > Unofficial. Not affiliated with or endorsed by CleanShot X or MakeTheWeb. You need your own CleanShot X licence.
 
-## Why this exists
+## Why demoreel, and how it compares
 
-CleanShot X has an official [URL-scheme API](https://cleanshot.com/docs-api), and other projects already wrap it. But on its own that API cannot make a demo video, because of three gaps:
+CleanShot X has an official [URL-scheme API](https://cleanshot.com/docs-api), and an earlier open-source MCP, [`jdorfman/cleanshot-mcp`](https://github.com/jdorfman/cleanshot-mcp), wraps it. That is a fine way to trigger a screenshot. It cannot produce a demo video, because the API itself has three gaps. demoreel closes each one.
 
 | Gap in the official API | How demoreel closes it |
 | --- | --- |
 | **It can open the recorder but not press Record or Stop.** | A small Swift helper presses CleanShot's own buttons through the macOS Accessibility API, answers its follow-up prompts, closes its editor window and returns the file. |
-| **Recorder options (mic, system audio, camera, click highlight, keystrokes) are not exposed.** | The same helper reads each toggle's state in the recorder panel and flips only the ones that differ. Other preferences can be read and written with a backup taken first. |
-| **Annotation is a GUI — nothing can be drawn by command.** | A declarative renderer: describe arrows, boxes, callouts, numbered steps, spotlights, blurs in JSON and get pixels back. The same marks work on video with start/end times. |
+| **Recorder options (mic, system audio, camera, click highlight, keystrokes) are not exposed.** | The same helper reads each toggle's state in the recorder panel and flips only the ones that differ, and can pick a camera or microphone by name. Other preferences can be read and written with a backup taken first. |
+| **Annotation is a GUI — nothing can be drawn by command.** | A declarative renderer: describe arrows, boxes, callouts, numbered steps, spotlights and blurs in JSON and get pixels back. The same marks work on video with start and end times. |
 
-On top of that it adds what a demo needs and CleanShot's API does not offer: scripted human-looking input, click-driven auto-zoom, captions, framed backgrounds, intro/outro cards, trim, speed, GIF export.
+### Side by side
+
+Compared with the other CleanShot MCP server, judged from its published README and tool list (`TOOLS.md`, `API.md`) on 2026-11-25:
+
+| | `cleanshot-mcp` | **demoreel-mcp** |
+| --- | --- | --- |
+| Take a screenshot (area, window, fullscreen) | Yes — opens the mode | Yes — captures and returns the saved file |
+| Scrolling capture | Opens the mode; you scroll and finish it | Scrolls to the end, finishes, returns one stitched image |
+| Start a screen recording | Opens the recorder | Opens it, sets the toggles, presses Record |
+| **Stop a recording and get the file** | No tool for it | Yes, with the file path and video properties back |
+| GIF and Studio Mode recording | No | Yes; Studio projects are exported to MP4 |
+| Mic / camera / click-highlight / keystroke toggles | No | Yes, including choosing the device |
+| **Draw annotations** | Opens CleanShot's Annotate window for a person | Renders arrows, callouts, steps, spotlight, blur and pixelate from JSON |
+| Annotate **video** | No | Yes, with timing |
+| Drive the app being demoed (pointer, typing, scrolling) | No | Yes, with eased pointer motion |
+| Auto-zoom on clicks, captions, framed background, intro/outro, trim, speed, GIF | No | Yes |
+| Arrange the app window so every take looks the same | No | Yes |
+| Keeps CleanShot's own overlay and system prompts out of captures | No | Yes |
+| Change CleanShot's settings | Opens the settings window | Reads, writes (with backup) and restores them |
+| Coordinates | CleanShot's bottom-left origin | Top-left, like window bounds, converted for you |
+| One call for a whole recorded, edited demo | No | `record_demo` |
+| Install | `npx cleanshot-mcp` | Clone and `npm install` for now |
+
+Everything `cleanshot-mcp` exposes is also reachable here through `cleanshot_command`, which validates parameters against the official API.
+
+**What the other server does better:** it is simpler, and installs with one `npx` command. If you only want an assistant to open CleanShot's capture modes and you will click the rest yourself, it is the lighter choice.
+
+**What a general computer-control MCP does not give you:** a generic "click and type on the Mac" tool can press CleanShot's buttons, but it does not know the recorder's layout, its audio prompts, its overlay windows or its editor, and it cannot edit the video afterwards. demoreel encodes all of that and tests it against a real CleanShot.
+
+The result is a different kind of tool: not "trigger a screenshot", but "give an agent a script and get a finished demo back".
 
 ## Requirements
 
@@ -72,40 +107,61 @@ Recorder options: `microphone` and `camera` take `true`, `false` or part of a de
 
 ### Example: a full take
 
+This is the take behind the clip at the top. It has two calls: record, then polish. `docs/demo.record.json` and `docs/demo.polish.json` hold the exact files, and `examples/acme-demo.html` is the page being demoed (`cd examples && python3 -m http.server 8765`, then open `http://127.0.0.1:8765/acme-demo.html`).
+
+`record_demo` — step coordinates are relative to the capture area:
+
 ```json
 {
-  "arrange": { "bundleId": "com.apple.Safari", "x": 200, "y": 100, "width": 1200, "height": 800 },
-  "options": { "highlightClicks": true, "systemAudio": false },
+  "area": { "x": 160, "y": 150, "width": 1280, "height": 790 },
+  "options": { "highlightClicks": true, "systemAudio": false, "camera": false },
+  "hideDesktopIcons": true,
   "steps": [
-    { "do": "click", "x": 600, "y": 196 },
-    { "do": "type", "text": "Launch plan", "ms": 70, "pause": 600 },
-    { "do": "click", "x": 600, "y": 445, "pause": 1500 }
+    { "do": "click", "x": 427, "y": 270, "ms": 900, "pause": 500 },
+    { "do": "type", "text": "Spring launch", "ms": 85, "pause": 900 },
+    { "do": "click", "x": 427, "y": 467, "ms": 900, "pause": 1800 }
   ],
-  "output": "~/Movies/demo-raw.mp4",
-  "polish": {
-    "autoZoom": true,
-    "output": "~/Movies/demo.mp4",
-    "background": { "gradient": "sunrise", "padding": 48 },
-    "captions": [{ "text": "Name it", "start": 0.5, "end": 4 }, { "text": "Publish in one click", "start": 4.5, "end": 9 }],
-    "intro": { "title": "Acme", "subtitle": "Publishing, in ten seconds" }
-  }
+  "output": "out/raw.mp4"
 }
 ```
 
-`examples/demo-page.html` is the page this example was tested against; `examples/long-page.html` is the scrolling-capture test page.
+It returns the video and a timeline of clicks, in video seconds and pixels, so the agent knows when each thing happened.
 
-### Example: annotate a screenshot
+`polish_video` — times are seconds in the raw video, coordinates are pixels in it:
 
 ```json
 {
-  "input": "shot.png",
+  "input": "out/raw.mp4",
+  "trim": { "start": 0.8, "end": 12.4 },
+  "zooms": [{ "start": 6.3, "end": 8.9, "x": 427, "y": 467, "scale": 1.7 }],
   "annotations": [
-    { "type": "pixelate", "x": 250, "y": 55, "width": 330, "height": 44 },
-    { "type": "spotlight", "x": 30, "y": 140, "width": 360, "height": 220 },
-    { "type": "callout", "x": 480, "y": 420, "text": "Click Publish\nto go live", "target": [900, 590], "background": "blue" },
-    { "type": "step", "x": 60, "y": 160 }
+    { "type": "pixelate", "x": 872, "y": 407, "width": 208, "height": 34, "start": 0.8, "end": 12.4 },
+    { "type": "callout", "x": 430, "y": 612, "text": "One click to go live", "target": [560, 502], "background": "blue", "start": 5.6, "end": 8.6 }
   ],
-  "background": { "gradient": "ocean" }
+  "captions": [{ "text": "2  Publish in one click", "start": 6.2, "end": 8.9 }],
+  "background": { "gradient": "sunrise", "padding": 56 },
+  "output": "out/demo.mp4"
+}
+```
+
+Prefer not to place zooms by hand? Pass `"autoZoom": true` inside `record_demo`'s `polish` and a smooth zoom is added on every click.
+
+### Example: annotate a screenshot
+
+![A screenshot annotated with numbered steps, callouts, a spotlight and a blurred secret](docs/annotate.png)
+
+The image above came from this call (`docs/annotate.spec.json`), with no GUI involved:
+
+```json
+{
+  "input": "page.png",
+  "annotations": [
+    { "type": "pixelate", "x": 872, "y": 407, "width": 208, "height": 34, "block": 9 },
+    { "type": "spotlight", "x": 186, "y": 110, "width": 484, "height": 396, "dim": 0.5 },
+    { "type": "step", "x": 184, "y": 270 },
+    { "type": "callout", "x": 710, "y": 238, "text": "Name the project", "target": [654, 270], "background": "blue" }
+  ],
+  "background": { "gradient": "ocean", "padding": 48 }
 }
 ```
 

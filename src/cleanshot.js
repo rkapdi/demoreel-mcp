@@ -170,7 +170,14 @@ async function deliver(file, output) {
 
 // ---------- recorder (accessibility) ----------
 
-const tree = () => ax('tree', BUNDLE);
+/** CleanShot is briefly unresponsive while it starts or stops the camera, so ride out short stalls. */
+async function tree() {
+  const end = Date.now() + 10000;
+  for (;;) {
+    try { return await ax('tree', BUNDLE); }
+    catch (e) { if (!/not responding/.test(e.message) || Date.now() > end) throw e; await sleep(400); }
+  }
+}
 const TOGGLES = { microphone: 'recorderMicrophone', systemAudio: 'recorderSystemSound', camera: 'recorderCamera', highlightClicks: 'recorderHighlightCursor', keystrokes: 'recorderShowKeystrokes' };
 const RECORD_BUTTON = { video: 'Record Video', gif: 'Record GIF', studio: 'Record in Studio Mode' };
 const isTimer = (n) => n.role === 'AXStaticText' && /^\d+:\d\d(:\d\d)?$/.test(n.value || '');
