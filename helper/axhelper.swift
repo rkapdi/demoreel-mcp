@@ -37,7 +37,17 @@ func node(_ e: AXUIElement, _ path: String, _ depth: Int) -> [String: Any] {
 }
 func appElement(_ bid: String) -> AXUIElement {
   guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bid).first else { fail("app not running: \(bid)") }
-  return AXUIElementCreateApplication(app.processIdentifier)
+  let ax = AXUIElementCreateApplication(app.processIdentifier)
+  // Do not wait the default several seconds on an app that is blocked (e.g. behind a system permission prompt).
+  AXUIElementSetMessagingTimeout(ax, 1.5)
+  return ax
+}
+/// Fails loudly when the app cannot answer at all, instead of reporting an empty interface.
+func requireResponsive(_ ax: AXUIElement, _ bid: String) {
+  var v: AnyObject?
+  let r = AXUIElementCopyAttributeValue(ax, "AXWindows" as CFString, &v)
+  if r == .cannotComplete { fail("not responding: \(bid) did not answer — it may be busy or waiting on a macOS permission prompt") }
+  if r == .apiDisabled || r == .notImplemented { fail("accessibility is not available for \(bid)") }
 }
 func roots(_ ax: AXUIElement) -> [(String, AXUIElement)] {
   var r: [(String, AXUIElement)] = []
@@ -95,7 +105,9 @@ case "request-trust":
 case "tree":
   guard args.count > 1 else { fail("tree <bundleId>") }
   let ax = appElement(args[1])
-  out(["roots": roots(ax).map { node($0.1, $0.0, 0) }])
+  requireResponsive(ax, args[1])
+  // The menu-bar extra ("x") is listed but not expanded: its menu is large and never needed.
+  out(["roots": roots(ax).map { node($0.1, $0.0, $0.0 == "x" ? 12 : 0) }])
 case "press":
   guard args.count > 2 else { fail("press <bundleId> <path> [action]") }
   guard let el = resolve(appElement(args[1]), args[2]) else { fail("element not found at \(args[2])") }
@@ -117,6 +129,14 @@ case "windows":
     return ["id": w["kCGWindowNumber"] ?? 0, "app": w["kCGWindowOwnerName"] ?? "", "title": w["kCGWindowName"] ?? "",
             "bundleId": NSRunningApplication(processIdentifier: pid)?.bundleIdentifier ?? "",
             "x": b["X"] ?? 0, "y": b["Y"] ?? 0, "width": b["Width"] ?? 0, "height": b["Height"] ?? 0]
+  }])
+case "prompts":
+  // System permission / authentication prompts currently on screen (they would show up in a capture).
+  let owners: Set<String> = ["UserNotificationCenter", "CoreServicesUIAgent", "universalAccessAuthWarn", "SecurityAgent", "coreautha"]
+  let l = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+  out(["prompts": l.compactMap { w -> [String: Any]? in
+    guard let o = w["kCGWindowOwnerName"] as? String, owners.contains(o), let b = w["kCGWindowBounds"] as? [String: Any] else { return nil }
+    return ["owner": o, "x": b["X"] ?? 0, "y": b["Y"] ?? 0, "width": b["Width"] ?? 0, "height": b["Height"] ?? 0]
   }])
 case "displays":
   let primaryH = NSScreen.screens.first?.frame.height ?? 0

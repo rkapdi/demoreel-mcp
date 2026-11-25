@@ -7,7 +7,7 @@ import sharp from 'sharp';
 import { zoomsFromClicks } from '../src/video.js';
 import { marksSvg, annotateImage } from '../src/annotate.js';
 import { parseCombo } from '../src/helper.js';
-import { COMMANDS, VERIFIED_SETTINGS } from '../src/cleanshot.js';
+import { COMMANDS, VERIFIED_SETTINGS, handoff, settingsSet } from '../src/cleanshot.js';
 
 test('zoomsFromClicks merges nearby clicks and separates distant ones', () => {
   const z = zoomsFromClicks([{ t: 2, x: 100, y: 100 }, { t: 2.8, x: 140, y: 110 }, { t: 6, x: 900, y: 500 }], { width: 1200, duration: 10 });
@@ -52,4 +52,20 @@ test('parseCombo', () => {
 test('command table covers the documented API', () => {
   for (const c of ['record-screen', 'capture-area', 'scrolling-capture', 'open-annotate', 'pin', 'capture-text', 'hide-desktop-icons']) assert.ok(c in COMMANDS, c);
   assert.ok('showKeystrokes' in VERIFIED_SETTINGS);
+});
+
+test('handoff copies files out of permission-gated folders', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'demoreel-test-'));
+  const src = path.join(dir, 'pic.png');
+  await fs.writeFile(src, 'x');
+  const dest = await handoff(src);
+  assert.notEqual(dest, src);
+  assert.match(dest, /\.demoreel\/handoff\/pic\.png$/);
+  assert.equal(await handoff(dest), dest);
+  await fs.rm(dir, { recursive: true }); await fs.rm(dest);
+});
+
+test('settingsSet refuses sensitive and unverified keys before touching anything', async () => {
+  await assert.rejects(settingsSet({ licenseKey: 'x' }), /Refusing/);
+  await assert.rejects(settingsSet({ someGuess: true }), /not a verified setting/);
 });

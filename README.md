@@ -49,17 +49,20 @@ Then ask the agent to run the `doctor` tool. It reports anything missing.
 
 | Tool | What it does |
 | --- | --- |
-| `doctor` | Checks CleanShot, permissions, ffmpeg, displays. |
-| `record_demo` | Whole take in one call: arrange window → record → scripted steps → stop → optional polish. Returns the file and a click timeline. |
-| `record_start` / `record_stop` / `record_status` / `record_cancel` | Manual control of a CleanShot recording (video, GIF, or Studio Mode — Studio is experimental). |
+| `doctor` | Checks CleanShot (installed, running, answering), permissions, ffmpeg, displays, and any macOS prompt waiting on screen. |
+| `record_demo` | Whole take in one call: arrange window → record → scripted steps → stop → optional polish. Returns the file and a click timeline. Works with video, GIF and Studio Mode. |
+| `record_start` / `record_stop` / `record_status` / `record_cancel` | Manual control of a CleanShot recording. Video, GIF, or Studio Mode (exported to MP4 through CleanShot's own editor, project kept alongside). |
 | `perform_actions` | Eased pointer glides, clicks, drags, smooth scrolling, typing, shortcuts, waits. |
 | `polish_video` | Zooms, timed annotations, captions, framed background, intro/outro, trim, speed, MP4/GIF. |
 | `annotate_image` | Arrow, line, rect, ellipse, highlight, text, callout, step, spotlight, blur, pixelate; crop; framed background. Can open the result in CleanShot's Annotate or pin it. |
-| `screenshot` | CleanShot capture of an area, window or display; scrolling capture. |
+| `screenshot` | CleanShot capture of an area, window or display. `scrolling: true` scrolls the content to the end and returns one tall stitched image. |
+| `clear_overlays` | Dismiss CleanShot's Quick Access Overlay items and tip bubbles. |
 | `video_frames` | Stills at given times, so the agent can look before placing marks. |
 | `list_windows` / `arrange_window` | Find and frame the app being demoed. |
 | `cleanshot_settings` | Read, change (with backup) and restore CleanShot preferences. |
 | `cleanshot_command` | Any official `cleanshot://` command, validated. |
+
+Recorder options: `microphone` and `camera` take `true`, `false` or part of a device name; `cameraSize` (small/medium/large/huge); `cameraShape` (circle/square/rectangle/vertical); `systemAudio`, `highlightClicks`, `keystrokes`.
 
 ### Coordinates
 
@@ -89,7 +92,7 @@ Then ask the agent to run the `doctor` tool. It reports anything missing.
 }
 ```
 
-`examples/demo-page.html` is the page this example was tested against.
+`examples/demo-page.html` is the page this example was tested against; `examples/long-page.html` is the scrolling-capture test page.
 
 ### Example: annotate a screenshot
 
@@ -110,7 +113,7 @@ Gradient presets: `sunrise ocean violet mint peach midnight sky ember slate fore
 
 ## How it works
 
-- `helper/axhelper.swift` — ~200 lines. Reads an app's accessibility tree as JSON, presses elements, moves/resizes windows, and posts mouse and keyboard events with easing. Compiled to `~/.demoreel/bin/axhelper` on first use.
+- `helper/axhelper.swift` — ~250 lines. Reads an app's accessibility tree as JSON, presses elements, moves/resizes windows, and posts mouse and keyboard events with easing. Compiled to `~/.demoreel/bin/axhelper` on first use.
 - `src/cleanshot.js` — official URL commands, recorder control, file pickup, settings.
 - `src/annotate.js` — marks → SVG → pixels via [sharp](https://sharp.pixelplumbing.com).
 - `src/video.js` — builds one ffmpeg filter graph from the spec.
@@ -118,16 +121,39 @@ Gradient presets: `sunrise ocean violet mint peach midnight sky ember slate fore
 
 No private CleanShot APIs, no code injection, no patching: the server only opens documented URLs and presses buttons a person could press.
 
+## What is kept out of your captures
+
+- **CleanShot's Quick Access Overlay.** Every overlay item and tip bubble is dismissed before each capture and again afterwards, so thumbnails of earlier captures never appear in a screenshot or recording. Dismissed captures stay in CleanShot's Capture History. Pass `keepOverlay: true` to leave them alone.
+- **CleanShot's editor and trimmer windows.** They are closed after each recording.
+- **macOS permission prompts.** A capture is refused if a system prompt covers the area (it would be burned into the video); `doctor` reports any prompt that is waiting.
+
 ## Limits and notes
 
-- **UI-driven parts can break when CleanShot changes its recorder panel.** They were verified on 5.0.4; `doctor` and clear error messages are the safety net. Please open an issue with your version if something stops matching.
-- Microphone and camera are chosen from a device menu; the server clicks the menu item with the real pointer (selecting it through accessibility makes CleanShot 5.0.4 quit).
-- Recording microphone **and** system audio together makes CleanShot ask about merging tracks; the server answers "Don't Merge". `record_demo` turns the microphone off unless you ask for it.
-- Recordings are copied to `~/Movies/demoreel/` (or your `output`) because CleanShot deletes its temporary copy when its overlay is dismissed. The Quick Access Overlay is left alone unless you pass `closeOverlay: true`, and it can show up in screenshots taken near the screen edge it sits on.
-- Studio Mode recordings produce a `.cleanshotvideo` project and leave CleanShot's editor open; exporting from that editor is not automated.
-- Zooms are rendered by ffmpeg, not by CleanShot's editor. Text width for labels is estimated, so very long labels may need a `size` tweak.
+- **UI-driven parts can break when CleanShot changes its recorder panel.** Verified on 5.0.4. `doctor` and explicit error messages are the safety net; please open an issue with your version if something stops matching.
+- **Camera needs CleanShot's own camera permission.** The first time, macOS asks "Allow CleanShot X to access your camera?" — only you can answer that. Until you do, the recording has no camera bubble.
+- Microphone and camera are chosen from a device menu; the server clicks the menu item with the real pointer (selecting it through accessibility makes CleanShot 5.0.4 quit). It prefers the Mac's built-in device over an iPhone.
+- With the camera on and no microphone, CleanShot asks about audio; the server answers "Don't Record Audio". With microphone **and** system audio, it asks about merging tracks; the server answers "Don't Merge". `record_demo` turns the microphone off unless you ask for it.
+- Files passed to CleanShot (`open-annotate`, `pin`, …) are first copied to `~/.demoreel/handoff/`, because CleanShot freezes behind a permission prompt when asked to read from Desktop, Documents or Downloads.
+- Recordings are copied to `~/Movies/demoreel/` (or your `output`), because CleanShot deletes its temporary copy when its overlay item is dismissed.
+- Scrolling capture follows the target's scrollbar to know when to finish. If the app exposes no scrollbar to accessibility, it scrolls for `scrollSeconds` (default 10) instead.
+- Studio Mode export uses the editor's default settings (original resolution). Zooms added by `polish_video` are rendered by ffmpeg, not by CleanShot's editor.
+- Text width for labels is estimated, so very long labels may need a `size` tweak.
 - `cleanshot_settings` only writes six keys that were verified by toggling the matching control and diffing; anything else needs `allowUnverified: true`.
 - The server moves your real pointer and types into the frontmost app while a script runs. Don't touch the Mac during a take.
+
+## Performance, and why this is not written in Rust, Go or assembly
+
+Measured on an M-series MacBook Pro:
+
+| Step | Time |
+| --- | --- |
+| Reading CleanShot's interface (one helper call) | ~30 ms |
+| Sending a `cleanshot://` command | ~75 ms |
+| Server start + handshake + one tool call | ~230 ms |
+| Polishing a 10 s 1200×800 take (zooms, captions, frame, cards) | ~5 s, all inside ffmpeg |
+| The take itself | as long as the demo runs |
+
+The server's own code accounts for well under 1% of a take. The time goes to CleanShot's animations, waiting for the demo to play, and ffmpeg encoding, which is already hand-optimised native code. The one part that must be native — talking to the Accessibility API and posting input events — is a compiled Swift binary. Rewriting the orchestration layer in another language would not make a take measurably faster and would cost the ecosystem pieces (MCP SDK, sharp) that keep it small.
 
 ## Development
 
