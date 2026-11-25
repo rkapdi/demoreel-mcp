@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>demoreel test page</title>
+<style>
+  html,body{height:100%;margin:0;font-family:-apple-system,Helvetica,Arial,sans-serif;background:#f5f6fa;color:#1c1e26}
+  main{height:100%;display:grid;grid-template-rows:30% 40% 30%;place-items:center}
+  input{width:60%;height:64px;font-size:26px;padding:0 22px;border:2px solid #d5d8e3;border-radius:14px;outline:none}
+  input:focus{border-color:#0a84ff;box-shadow:0 0 0 5px #0a84ff22}
+  button{width:420px;height:130px;font-size:34px;font-weight:700;color:#fff;background:#0a84ff;border:0;border-radius:22px;cursor:pointer;transition:transform .12s}
+  button:active{transform:scale(.96)}
+  #out{font-size:30px;font-weight:600;color:#34c759;opacity:0;transition:opacity .4s}
+  #out.on{opacity:1}
+</style>
+<main>
+  <input id="project" placeholder="Name your project…">
+  <button id="go">Publish</button>
+  <div id="out">Published</div>
+</main>
+<script>
+  // Note: the field is not called "name" on purpose — window.name would shadow it.
+  const field = document.getElementById('project'), out = document.getElementById('out');
+  let n = 0;
+  field.oninput = () => { document.title = `demoreel test page: ${field.value}`; };
+  document.getElementById('go').onclick = () => { out.textContent = `“${field.value || 'Untitled'}” published · ${++n}`; out.classList.add('on'); };
+</script>
