@@ -86,7 +86,8 @@ tool('doctor', 'Check that everything needed is in place: CleanShot X installed 
   const { displays } = await ax('displays').catch(() => ({ displays: [] }));
   const problems = [];
   const { prompts } = await ax('prompts').catch(() => ({ prompts: [] }));
-  if (prompts.some((p) => p.visible === false)) problems.push('A macOS permission prompt is open behind another window. It will not show in captures, but answer it when you can.');
+  const notes = [];
+  if (prompts.some((p) => p.visible === false)) notes.push('A macOS permission prompt is open behind another window. It will not show in captures, but answer it when you can.');
   if (prompts.some((p) => p.visible !== false)) problems.push('A macOS permission prompt is waiting on screen; it would appear in captures and can freeze the app that triggered it. Answer it.');
   const responsive = app.running ? await ax('tree', cs.BUNDLE).then(() => true, (e) => e.message) : null;
   if (typeof responsive === 'string') problems.push(`CleanShot X is not answering: ${responsive}`);
@@ -94,7 +95,7 @@ tool('doctor', 'Check that everything needed is in place: CleanShot X installed 
   else if (!app.running) problems.push('CleanShot X is not running — open it.');
   if (!trust.accessibility) problems.push('Accessibility permission is missing. System Settings → Privacy & Security → Accessibility → enable the app that runs this MCP server (your terminal, Claude, Cursor…). Needed to press Record/Stop and to move the pointer.');
   if (!ffmpeg) problems.push('ffmpeg not found (brew install ffmpeg). Needed for polish_video.');
-  return { ok: problems.length === 0, problems, cleanshot: app, permissions: trust, ffmpeg, displays,
+  return { ok: problems.length === 0, problems, notes, cleanshot: app, permissions: trust, ffmpeg, displays,
     reminder: 'CleanShot → Settings → Advanced → API → "Allow applications to control CleanShot" must be on.' };
 });
 
