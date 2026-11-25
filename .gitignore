@@ -3,3 +3,4 @@ helper/axhelper
 *.log
 .DS_Store
 out/
+launch/

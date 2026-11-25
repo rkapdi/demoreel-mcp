@@ -1,6 +1,7 @@
 {
   "name": "demoreel-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "mcpName": "io.github.rkapdi/demoreel-mcp",
   "description": "MCP server that lets AI agents record, annotate and polish product demo videos on macOS by driving CleanShot X (unofficial).",
   "type": "module",
   "bin": {
