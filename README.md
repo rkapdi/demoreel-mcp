@@ -1,5 +1,7 @@
 # demoreel-mcp
 
+[![npm](https://img.shields.io/npm/v/demoreel-mcp)](https://www.npmjs.com/package/demoreel-mcp) [![licence: MIT](https://img.shields.io/badge/licence-MIT-blue)](LICENSE) ![macOS](https://img.shields.io/badge/macOS-only-lightgrey)
+
 An MCP server that lets an AI agent **record, annotate and polish product demo videos on macOS** by driving [CleanShot X](https://cleanshot.com).
 
 ![An agent recording, zooming, blurring and captioning a product demo](docs/demo.gif)
@@ -43,11 +45,11 @@ Compared with the other CleanShot MCP server, judged from its published README a
 | Change CleanShot's settings | Opens the settings window | Reads, writes (with backup) and restores them |
 | Coordinates | CleanShot's bottom-left origin | Top-left, like window bounds, converted for you |
 | One call for a whole recorded, edited demo | No | `record_demo` |
-| Install | `npx cleanshot-mcp` | Clone and `npm install` for now |
+| Install | `npx cleanshot-mcp` | `npx -y demoreel-mcp` |
 
 Everything `cleanshot-mcp` exposes is also reachable here through `cleanshot_command`, which validates parameters against the official API.
 
-**What the other server does better:** it is simpler, and installs with one `npx` command. If you only want an assistant to open CleanShot's capture modes and you will click the rest yourself, it is the lighter choice.
+**What the other server does better:** it is simpler, with fewer moving parts (no Swift helper, no ffmpeg). If you only want an assistant to open CleanShot's capture modes and you will click the rest yourself, it is the lighter choice.
 
 **What a general computer-control MCP does not give you:** a generic "click and type on the Mac" tool can press CleanShot's buttons, but it does not know the recorder's layout, its audio prompts, its overlay windows or its editor, and it cannot edit the video afterwards. demoreel encodes all of that and tests it against a real CleanShot.
 
@@ -62,23 +64,21 @@ The result is a different kind of tool: not "trigger a screenshot", but "give an
 
 ## Install
 
-```bash
-git clone https://github.com/rkapdi/demoreel-mcp.git && cd demoreel-mcp && npm install
-```
-
-Claude Code:
+No clone needed. Claude Code:
 
 ```bash
-claude mcp add demoreel -- node /absolute/path/to/demoreel-mcp/src/index.js
+claude mcp add demoreel -- npx -y demoreel-mcp
 ```
 
-Claude Desktop / Cursor / any MCP client:
+Claude Desktop, Cursor or any MCP client:
 
 ```json
-{ "mcpServers": { "demoreel": { "command": "node", "args": ["/absolute/path/to/demoreel-mcp/src/index.js"] } } }
+{ "mcpServers": { "demoreel": { "command": "npx", "args": ["-y", "demoreel-mcp"] } } }
 ```
 
 Then ask the agent to run the `doctor` tool. It reports anything missing.
+
+To work on it instead, clone the repo (`git clone https://github.com/rkapdi/demoreel-mcp.git && cd demoreel-mcp && npm install`) and point your client at `node /absolute/path/to/demoreel-mcp/src/index.js`.
 
 ## Tools
 
