@@ -28,7 +28,7 @@ On top of that it adds what a demo needs and CleanShot's API does not offer: scr
 ## Install
 
 ```bash
-git clone <this repo> && cd demoreel-mcp && npm install
+git clone https://github.com/rkapdi/demoreel-mcp.git && cd demoreel-mcp && npm install
 ```
 
 Claude Code:
