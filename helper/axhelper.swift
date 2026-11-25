@@ -134,10 +134,19 @@ case "prompts":
   // System permission / authentication prompts currently on screen (they would show up in a capture).
   let owners: Set<String> = ["UserNotificationCenter", "CoreServicesUIAgent", "universalAccessAuthWarn", "SecurityAgent", "coreautha"]
   let l = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
-  out(["prompts": l.compactMap { w -> [String: Any]? in
-    guard let o = w["kCGWindowOwnerName"] as? String, owners.contains(o), let b = w["kCGWindowBounds"] as? [String: Any] else { return nil }
-    return ["owner": o, "x": b["X"] ?? 0, "y": b["Y"] ?? 0, "width": b["Width"] ?? 0, "height": b["Height"] ?? 0]
-  }])
+  func rect(_ w: [String: Any]) -> CGRect {
+    let b = w["kCGWindowBounds"] as? [String: Any] ?? [:]
+    return CGRect(x: b["X"] as? Double ?? 0, y: b["Y"] as? Double ?? 0, width: b["Width"] as? Double ?? 0, height: b["Height"] as? Double ?? 0)
+  }
+  var found: [[String: Any]] = []
+  for (i, w) in l.enumerated() {
+    guard let o = w["kCGWindowOwnerName"] as? String, owners.contains(o) else { continue }
+    let r = rect(w), layer = w["kCGWindowLayer"] as? Int ?? 0
+    // The list is front-to-back. An ordinary-level prompt that another window fully covers cannot be captured.
+    let covered = layer == 0 && l[..<i].contains { ($0["kCGWindowLayer"] as? Int ?? 0) == 0 && ($0["kCGWindowAlpha"] as? Double ?? 1) > 0.9 && rect($0).contains(r) }
+    found.append(["owner": o, "x": Int(r.minX), "y": Int(r.minY), "width": Int(r.width), "height": Int(r.height), "visible": !covered])
+  }
+  out(["prompts": found])
 case "displays":
   let primaryH = NSScreen.screens.first?.frame.height ?? 0
   out(["displays": NSScreen.screens.enumerated().map { (i, s) -> [String: Any] in

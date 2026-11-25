@@ -113,7 +113,7 @@ export async function resolveArea({ area, window: win, display }) {
  * that covers the area; report any others so the caller can tell the user.
  */
 export async function checkPrompts(rect, { ignorePrompts = false } = {}) {
-  const { prompts } = await ax('prompts');
+  const prompts = (await ax('prompts')).prompts.filter((p) => p.visible !== false);
   if (!prompts.length) return {};
   const hit = (p) => !rect || (p.x < rect.x + rect.width && p.x + p.width > rect.x && p.y < rect.y + rect.height && p.y + p.height > rect.y);
   if (!ignorePrompts && prompts.some(hit)) {

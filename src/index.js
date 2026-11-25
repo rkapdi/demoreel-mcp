@@ -86,7 +86,8 @@ tool('doctor', 'Check that everything needed is in place: CleanShot X installed 
   const { displays } = await ax('displays').catch(() => ({ displays: [] }));
   const problems = [];
   const { prompts } = await ax('prompts').catch(() => ({ prompts: [] }));
-  if (prompts.length) problems.push('A macOS permission prompt is waiting on screen; it would appear in captures and can freeze the app that triggered it. Answer it.');
+  if (prompts.some((p) => p.visible === false)) problems.push('A macOS permission prompt is open behind another window. It will not show in captures, but answer it when you can.');
+  if (prompts.some((p) => p.visible !== false)) problems.push('A macOS permission prompt is waiting on screen; it would appear in captures and can freeze the app that triggered it. Answer it.');
   const responsive = app.running ? await ax('tree', cs.BUNDLE).then(() => true, (e) => e.message) : null;
   if (typeof responsive === 'string') problems.push(`CleanShot X is not answering: ${responsive}`);
   if (!app.installed) problems.push('CleanShot X is not installed in /Applications.');
